@@ -19,8 +19,10 @@ if ($Check -or $CheckProject) {
         Write-Host ("{0}: {1}" -f $tool, $resolved.Source)
     }
 
-    $leanVersion = (& lean --version | Select-Object -First 1)
-    if ($LASTEXITCODE -ne 0 -or $leanVersion -notmatch '4\.35\.0') {
+$leanVersionLines = @(& lean --version 2>&1)
+$leanVersionExitCode = $LASTEXITCODE
+$leanVersion = ($leanVersionLines -join ' ').Trim()
+if ($leanVersionExitCode -ne 0 -or $leanVersion -notmatch '(?<!\d)4\.35\.0(?!\d)') {
         throw "Unexpected Lean version: $leanVersion"
     }
     & lake --version | Out-Host
