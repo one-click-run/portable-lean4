@@ -272,8 +272,31 @@ try {
     Write-Host "Mathlib's first self-check may be quiet for several minutes." -ForegroundColor Yellow
     Write-Host "The rotating marker below means the check is still running; please keep this window open." -ForegroundColor Yellow
     Write-Host "Windows Defender may scan thousands of cached files during this step." -ForegroundColor DarkGray
-    & powershell -NoProfile -ExecutionPolicy Bypass -File (Join-Path $staging "Enter-PortableLean4.ps1") -CheckMathlib
-    if ($LASTEXITCODE -ne 0) { throw "The extracted Mathlib environment failed its self-check." }
+    $checkScript = Join-Path $staging "Enter-PortableLean4.ps1"
+    $checkArguments = "-NoProfile -ExecutionPolicy Bypass -File `"$checkScript`" -CheckMathlib"
+    $checkStdout = Join-Path $work "mathlib-check.stdout.log"
+    $checkStderr = Join-Path $work "mathlib-check.stderr.log"
+    $checkProcess = Start-Process -FilePath "powershell.exe" -ArgumentList $checkArguments `
+        -RedirectStandardOutput $checkStdout -RedirectStandardError $checkStderr -PassThru
+    $spinner = @("|", "/", "-", "\")
+    $spinnerIndex = 0
+    $checkTimer = [Diagnostics.Stopwatch]::StartNew()
+    while (-not $checkProcess.HasExited) {
+        $elapsed = $checkTimer.Elapsed.ToString("hh\:mm\:ss")
+        Write-Host ("`r[{0}] Checking Mathlib... {1}" -f $spinner[$spinnerIndex], $elapsed) -NoNewline -ForegroundColor Yellow
+        $spinnerIndex = ($spinnerIndex + 1) % $spinner.Count
+        Start-Sleep -Milliseconds 150
+        $checkProcess.Refresh()
+    }
+    $checkProcess.WaitForExit()
+    $checkTimer.Stop()
+    Write-Host ("`r{0}`r" -f (" " * 78)) -NoNewline
+    $checkOutput = if (Test-Path -LiteralPath $checkStdout) { Get-Content -LiteralPath $checkStdout -Raw } else { "" }
+    $checkErrors = if (Test-Path -LiteralPath $checkStderr) { Get-Content -LiteralPath $checkStderr -Raw } else { "" }
+    if ($checkOutput) { Write-Host ($checkOutput.TrimEnd()) }
+    if ($checkErrors) { Write-Host ($checkErrors.TrimEnd()) -ForegroundColor Red }
+    if ($checkProcess.ExitCode -ne 0) { throw "The extracted Mathlib environment failed its self-check." }
+    Write-Host ("Mathlib self-check completed in {0}." -f $checkTimer.Elapsed.ToString("hh\:mm\:ss")) -ForegroundColor Green
     & powershell -NoProfile -ExecutionPolicy Bypass -File (Join-Path $staging "Open-PortableLean4-VSCode.ps1") -Check
     if ($LASTEXITCODE -ne 0) { throw "The VS Code integration failed its self-check." }
 
