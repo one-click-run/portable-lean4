@@ -50,6 +50,7 @@ jobs:
         shell: pwsh
         run: |
           $asset = Get-ChildItem "$env:RUNNER_TEMP\dist\portable-lean4-core-*.zip" | Select-Object -First 1
+          $node = (Get-Command node -ErrorAction Stop).Source
           $testRoot = Join-Path $env:RUNNER_TEMP "路径 with spaces\offline-install"
           New-Item -ItemType Directory -Path $testRoot -Force | Out-Null
           Push-Location $testRoot
@@ -64,7 +65,7 @@ jobs:
             if ($LASTEXITCODE -ne 0) { throw "Offline VSIX installation test failed." }
             . "$root\Initialize-PortableLean4.ps1"
             $portable = Initialize-PortableLean4Environment -Root $root -IsolateUserProfile
-            & node "$env:GITHUB_WORKSPACE\scripts\test-lean-lsp.js" `
+            & $node "$env:GITHUB_WORKSPACE\scripts\test-lean-lsp.js" `
               (Join-Path $portable.ElanBin "lean.exe") `
               (Join-Path $root "examples\hello") `
               (Join-Path $root "examples\hello\Main.lean")
