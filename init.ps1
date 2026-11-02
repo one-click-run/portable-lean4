@@ -27,12 +27,9 @@ function Receive-File([string]$Uri, [string]$Destination) {
 }
 
 function Expand-ToolchainArchive([string]$ArchivePath, [string]$DestinationPath) {
-    $tar = Get-Command tar.exe -ErrorAction SilentlyContinue
-    if ($tar) {
-        & $tar.Source -xf $ArchivePath -C $DestinationPath
-        if ($LASTEXITCODE -ne 0) { throw "tar failed to extract the verified archive." }
-        return
-    }
+    # Windows bsdtar cannot reliably chdir to non-ASCII destination paths.
+    # ZipFile handles Unicode paths and avoids Expand-Archive's cleanup bug on
+    # large archives in Windows PowerShell 5.1.
     Add-Type -AssemblyName System.IO.Compression.FileSystem
     [IO.Compression.ZipFile]::ExtractToDirectory($ArchivePath, $DestinationPath)
 }
