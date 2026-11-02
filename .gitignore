@@ -1,6 +1,8 @@
 .build/
+.full-build/
 .cache/
 dist/
+dist-full/
 artifacts/
 *.zip
 *.sha256

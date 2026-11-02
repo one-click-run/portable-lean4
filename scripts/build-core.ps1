@@ -129,7 +129,9 @@ $payloadFiles = @(
 foreach ($file in $payloadFiles) {
     Copy-Item -LiteralPath (Join-Path $repoRoot $file) -Destination $payload
 }
-Copy-Item -LiteralPath (Join-Path $repoRoot "examples") -Destination $payload -Recurse
+$payloadExamples = Join-Path $payload "examples"
+New-Item -ItemType Directory -Path $payloadExamples -Force | Out-Null
+Copy-Item -LiteralPath (Join-Path $repoRoot "examples\hello") -Destination $payloadExamples -Recurse
 [IO.File]::WriteAllText((Join-Path $payload "VERSION.txt"), "$($versions.Lean.Version)`n", [Text.UTF8Encoding]::new($false))
 
 Write-Step "Downloading pinned VS Code extensions"

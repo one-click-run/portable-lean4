@@ -5,7 +5,7 @@
 - Windows x86-64
 - PowerShell 5.1 或更高版本
 - Git
-- 约 8 GB 可用磁盘空间
+- Core 约需 8 GB、完整版建议至少 20 GB 可用磁盘空间
 - 可访问 GitHub Releases
 
 不需要预装 Lean 或 elan。
@@ -16,6 +16,14 @@
 .\scripts\test.ps1
 .\scripts\build-core.ps1
 ```
+
+构建 Mathlib 完整版离线层：
+
+```powershell
+.\scripts\build-full.ps1 -OutputDirectory .\dist-full
+```
+
+完整版构建会先构建 Core，固定 Mathlib v4.35.0 的完整 Git 依赖图，获取 Mathlib 官方缓存，删除不需要的 Git 元数据，再断网代理条件下编译示例。输出是与 Core 叠加安装的 Mathlib ZIP，而不是重复包含 Core。
 
 构建脚本会：
 

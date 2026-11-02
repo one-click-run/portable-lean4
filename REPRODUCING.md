@@ -27,3 +27,21 @@ cd portable-lean4
 
 不同机器的 ZIP 字节可能因为文件时间戳或压缩器版本而不同。包内组件由固定上游 SHA-256 验证，且构建后执行功能测试。
 
+## Mathlib 完整版
+
+完整版额外固定：
+
+- Mathlib tag：`v4.35.0`
+- Mathlib commit：`56a005855ea17e0b0958f73ec801ae140b0a1679`
+- 依赖提交：由该版本 Mathlib 的 `lake-manifest.json` 和生成的根项目 manifest 双重锁定
+- 预编译文件：由 Mathlib 自带 `cache` 工具按固定源码提交获取
+
+权威构建定义是 `.github/workflows/publish-full.yml`：
+
+```powershell
+.\scripts\test.ps1
+.\scripts\build-full.ps1 -OutputDirectory .\dist-full
+```
+
+输出为 `portable-lean4-mathlib-4.35.0-windows-x86_64.zip` 及 SHA-256、来源清单和 SPDX SBOM。安装时由 `init-full.ps1` 与经过独立校验的 Core ZIP 合并。
+

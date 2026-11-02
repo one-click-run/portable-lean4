@@ -1,6 +1,7 @@
 param(
     [switch]$Check,
-    [switch]$CheckProject
+    [switch]$CheckProject,
+    [switch]$CheckMathlib
 )
 
 $ErrorActionPreference = "Stop"
@@ -9,7 +10,7 @@ Set-StrictMode -Version Latest
 
 $portable = Initialize-PortableLean4Environment -Root $PSScriptRoot
 
-if ($Check -or $CheckProject) {
+if ($Check -or $CheckProject -or $CheckMathlib) {
     foreach ($tool in @("elan", "lean", "lake", "leanc")) {
         $resolved = Get-Command $tool -ErrorAction SilentlyContinue
         if (-not $resolved) { throw "Missing bundled tool: $tool" }
@@ -52,13 +53,37 @@ if ($leanVersionExitCode -ne 0 -or $leanVersion -notmatch '(?<!\d)4\.35\.0(?!\d)
         }
     }
 
+    if ($CheckMathlib) {
+        $example = Join-Path $portable.Root "examples\mathlib"
+        if (-not (Test-Path -LiteralPath (Join-Path $example ".lake\packages\mathlib\Mathlib.lean") -PathType Leaf)) {
+            throw "The bundled Mathlib source tree is missing."
+        }
+        Push-Location $example
+        try {
+            & lake build
+            if ($LASTEXITCODE -ne 0) { throw "The bundled Mathlib example failed to build." }
+            $demo = Join-Path $example ".lake\build\bin\mathlib_demo.exe"
+            if (-not (Test-Path -LiteralPath $demo -PathType Leaf)) {
+                throw "The bundled Mathlib example executable was not created."
+            }
+            $output = (& $demo).Trim()
+            if ($output -ne "Hello from portable Lean 4 + Mathlib!") {
+                throw "Unexpected Mathlib example output: $output"
+            }
+        } finally {
+            Pop-Location
+        }
+    }
+
     Write-Host $leanVersion -ForegroundColor Green
     Write-Host "Portable Lean 4 checks passed." -ForegroundColor Green
     exit 0
 }
 
-$host.UI.RawUI.WindowTitle = "Portable Lean 4"
-Write-Host "Portable Lean 4 environment" -ForegroundColor Green
+$hasMathlib = Test-Path -LiteralPath (Join-Path $portable.Root "examples\mathlib\.lake\packages\mathlib\Mathlib.lean") -PathType Leaf
+$edition = if ($hasMathlib) { "Portable Lean 4 + Mathlib" } else { "Portable Lean 4" }
+$host.UI.RawUI.WindowTitle = $edition
+Write-Host "$edition environment" -ForegroundColor Green
 Write-Host (& lean --version | Select-Object -First 1)
 Write-Host "Toolchain: $($portable.Toolchain)" -ForegroundColor DarkGray
 Write-Host "The current shell is isolated and does not modify the system PATH." -ForegroundColor DarkGray

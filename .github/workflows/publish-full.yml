@@ -1,0 +1,99 @@
+name: Publish Full
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: windows-latest
+    timeout-minutes: 180
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Restore verified upstream download cache
+        uses: actions/cache@v4
+        with:
+          path: .cache
+          key: portable-lean4-full-v1-${{ hashFiles('scripts/versions.psd1', 'vscode-extensions/manifest.json') }}
+
+      - name: Validate repository
+        shell: powershell
+        run: .\scripts\test.ps1
+
+      - name: Build and test Mathlib overlay
+        shell: powershell
+        run: .\scripts\build-full.ps1 -OutputDirectory "$env:RUNNER_TEMP\dist-full"
+
+      - name: Provision VS Code host for integration test
+        shell: pwsh
+        run: |
+          $archive = Join-Path $env:RUNNER_TEMP "vscode-win32-x64.zip"
+          $codeRoot = Join-Path $env:RUNNER_TEMP "vscode-host"
+          curl.exe --fail --location --silent --show-error `
+            "https://update.code.visualstudio.com/latest/win32-x64-archive/stable" `
+            --output $archive
+          if ($LASTEXITCODE -ne 0) { throw "Failed to download the VS Code integration-test host." }
+          [IO.Compression.ZipFile]::ExtractToDirectory($archive, $codeRoot)
+          $code = Join-Path $codeRoot "bin\code.cmd"
+          if (-not (Test-Path -LiteralPath $code -PathType Leaf)) { throw "VS Code CLI is missing after extraction." }
+          "ONE_CLICK_RUN_VSCODE=$code" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+
+      - name: Test full installer after moving it
+        shell: pwsh
+        run: |
+          $core = Get-ChildItem "$env:GITHUB_WORKSPACE\.full-build\core-dist\portable-lean4-core-*.zip" | Select-Object -First 1
+          $mathlib = Get-ChildItem "$env:RUNNER_TEMP\dist-full\portable-lean4-mathlib-*.zip" | Select-Object -First 1
+          $node = (Get-Command node -ErrorAction Stop).Source
+          $testRoot = Join-Path $env:RUNNER_TEMP "数学 路径\offline-full"
+          New-Item -ItemType Directory -Path $testRoot -Force | Out-Null
+          Push-Location $testRoot
+          try {
+            . "$env:GITHUB_WORKSPACE\init-full.ps1" `
+              -CoreArchive $core.FullName `
+              -CoreChecksum "$($core.FullName).sha256" `
+              -MathlibArchive $mathlib.FullName `
+              -MathlibChecksum "$($mathlib.FullName).sha256" `
+              -InstallName moved
+            $root = Join-Path $testRoot "OCR-portable-lean4-moved"
+            & powershell -NoProfile -ExecutionPolicy Bypass -File "$root\Enter-PortableLean4.ps1" -CheckMathlib
+            if ($LASTEXITCODE -ne 0) { throw "Moved Mathlib environment test failed." }
+            & powershell -NoProfile -ExecutionPolicy Bypass -File "$root\Open-PortableLean4-VSCode.ps1" -CheckExtensions
+            if ($LASTEXITCODE -ne 0) { throw "Offline VSIX installation test failed." }
+            . "$root\Initialize-PortableLean4.ps1"
+            $portable = Initialize-PortableLean4Environment -Root $root -IsolateUserProfile
+            & $node "$env:GITHUB_WORKSPACE\scripts\test-lean-lsp.js" `
+              (Join-Path $portable.ElanBin "lean.exe") `
+              (Join-Path $root "examples\mathlib") `
+              (Join-Path $root "examples\mathlib\Main.lean") `
+              4 20 Finset
+            if ($LASTEXITCODE -ne 0) { throw "Mathlib language server hover test failed." }
+          } finally {
+            Pop-Location
+          }
+
+      - name: Publish full release assets
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          $notes = @"
+          Windows x86-64 portable Lean 4 + Mathlib environment.
+
+          Fixed versions: Lean 4.35.0 and Mathlib v4.35.0. Install with
+          init-full.ps1; it combines the separately verified Core archive and
+          this Mathlib offline layer into one movable directory.
+
+          Every ZIP has a matching SHA-256 file. Build source: $env:GITHUB_SHA
+          Build log: $env:GITHUB_SERVER_URL/$env:GITHUB_REPOSITORY/actions/runs/$env:GITHUB_RUN_ID
+          "@
+          gh release view full --repo $env:GITHUB_REPOSITORY *> $null
+          if ($LASTEXITCODE -ne 0) {
+            gh release create full --repo $env:GITHUB_REPOSITORY --title "Portable Lean 4 + Mathlib" --notes $notes
+          }
+          Get-ChildItem "$env:RUNNER_TEMP\dist-full" -File | ForEach-Object {
+            gh release upload full $_.FullName --repo $env:GITHUB_REPOSITORY --clobber
+            if ($LASTEXITCODE -ne 0) { throw "Failed to upload $($_.Name)." }
+          }

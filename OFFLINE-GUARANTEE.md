@@ -11,6 +11,12 @@
 - VS Code 中的 Lean 语言服务器、诊断、补全和 Infoview。
 - 整体目录移动或改名后的上述功能。
 
+Mathlib 完整版还承诺：
+
+- `import Mathlib` 无需联网。
+- 使用包内固定依赖和官方构建缓存编译 Mathlib 项目。
+- VS Code 中加载包内 Mathlib 工作区、诊断、补全、悬停和 Infoview。
+
 启动器不会检查更新，也不会自动下载其他 Lean 版本。
 
 ## 不承诺离线
@@ -23,7 +29,7 @@
 - 安装其他 VS Code 扩展
 - 更新 VS Code 本体
 
-Core 包不包含 Mathlib。
+Core 包不包含 Mathlib；上述 Mathlib 能力仅适用于通过 `init-full.ps1` 安装的完整版。
 
 ## 系统影响
 
@@ -33,5 +39,5 @@ Core 包不包含 Mathlib。
 - 运行时数据保存在包内 `data`。
 - 删除整个便携目录即可移除运行环境。
 
-Microsoft Visual Studio Code 本体不是 Core 包的一部分。IDE 入口需要目标机器已有 VS Code；命令行功能不需要 VS Code。
+Microsoft Visual Studio Code 本体不是 Core 或 Mathlib 离线层的一部分。IDE 入口需要目标机器已有 VS Code；命令行功能不需要 VS Code。
 

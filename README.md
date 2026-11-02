@@ -1,12 +1,30 @@
 # portable-lean4
 
-在当前目录生成固定版本、可移动、可离线运行的 Windows Lean 4 Core 开发环境。
+在当前目录生成固定版本、可移动、可离线运行的 Windows Lean 4 开发环境。提供精简 Core 版和包含官方构建缓存的 Mathlib 完整版。
 
 Core 包包含 Lean 4、Lake、标准库、官方自带的 C/LLVM 工具链、隔离的 elan，以及固定版本的 Lean 4 和 Tombi VS Code 扩展。它不会永久修改系统 `PATH`，也不会使用用户原有的 `%USERPROFILE%\.elan`。整个目录可以复制、改名或删除。
 
-目前仅支持 Windows x86-64，固定使用 Lean **4.35.0**。Mathlib 不包含在 Core 包中，后续将作为单独的大型发行包提供。
+目前仅支持 Windows x86-64，固定使用 Lean **4.35.0**。完整版固定使用 Mathlib **v4.35.0**。
 
-## 使用
+## Mathlib 完整版（推荐）
+
+在希望创建环境的目录中打开 PowerShell：
+
+```powershell
+irm "https://raw.githubusercontent.com/one-click-run/portable-lean4/main/init-full.ps1" | iex
+```
+
+安装器会分别下载并校验 Core 与 Mathlib 离线层，最终合并成一个可移动目录。VS Code 入口默认打开 `examples\mathlib`，其中包含已经解析并缓存好的全部依赖。
+
+完全离线安装时，同时复制两个 ZIP 及各自的 `.sha256` 文件：
+
+```powershell
+.\init-full.ps1 `
+  -CoreArchive .\portable-lean4-core-4.35.0-windows-x86_64.zip `
+  -MathlibArchive .\portable-lean4-mathlib-4.35.0-windows-x86_64.zip
+```
+
+## Core 版
 
 在希望创建环境的目录中打开 PowerShell：
 
@@ -29,7 +47,7 @@ VS Code 入口需要机器上已有 Microsoft Visual Studio Code。Lean 4 与 To
   -Checksum .\portable-lean4-core-4.35.0-windows-x86_64.zip.sha256
 ```
 
-## 包内内容
+## Core 包内容
 
 - Lean 4.35.0
 - Lake
@@ -53,9 +71,14 @@ VS Code 进程还会获得包内专用的 `USERPROFILE`。这样 Lean 扩展即�
 
 完整离线边界见 [`OFFLINE-GUARANTEE.md`](OFFLINE-GUARANTEE.md)。构建来源、校验值和复现方法见 [`REPRODUCING.md`](REPRODUCING.md)。
 
-## 不在 Core 承诺范围内
+## Mathlib 完整版额外包含
 
-- Mathlib
+- Mathlib v4.35.0 源码与官方预编译缓存
+- Mathlib 固定依赖图及所有依赖源码
+- 可离线编译、运行并由 Lean Language Server 加载的 Mathlib 示例
+
+## 不在离线承诺范围内
+
 - 自动切换多个 Lean 版本
 - 自动更新 Lean 或扩展
 - 任意第三方 Lake 依赖离线安装
@@ -77,4 +100,10 @@ VS Code 进程还会获得包内专用的 `USERPROFILE`。这样 Lean 扩展即�
 ```
 
 完整构建需要下载约 900 MB 的官方 Lean Windows 归档，并在 `dist` 中生成 ZIP、SHA-256、来源清单与 SPDX SBOM。
+
+构建 Mathlib 离线层：
+
+```powershell
+.\scripts\build-full.ps1
+```
 

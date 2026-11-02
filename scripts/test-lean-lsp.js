@@ -3,10 +3,12 @@ const path = require("node:path");
 const { pathToFileURL } = require("node:url");
 const { spawn } = require("node:child_process");
 
-const [executable, workingDirectory, documentPath] = process.argv.slice(2);
+const [executable, workingDirectory, documentPath, hoverLine = "0", hoverCharacter = "12", expectedHover = "IO"] = process.argv.slice(2);
 if (!executable || !workingDirectory || !documentPath) {
-  throw new Error("Usage: node test-lean-lsp.js <lean.exe> <working-directory> <Main.lean>");
+  throw new Error("Usage: node test-lean-lsp.js <lean.exe> <working-directory> <Main.lean> [line] [character] [expected-hover]");
 }
+const hoverPosition = { line: Number(hoverLine), character: Number(hoverCharacter) };
+const expectedHoverPattern = new RegExp(expectedHover);
 
 const child = spawn(executable, ["--server"], {
   cwd: workingDirectory,
@@ -117,14 +119,14 @@ child.on("error", error => {
   for (let attempt = 0; attempt < 20; attempt++) {
     hover = await request("textDocument/hover", {
       textDocument: { uri },
-      position: { line: 0, character: 12 },
+      position: hoverPosition,
     });
-    if (hover.result && /IO/.test(JSON.stringify(hover.result))) break;
+    if (hover.result && expectedHoverPattern.test(JSON.stringify(hover.result))) break;
     await new Promise(resolve => setTimeout(resolve, 1000));
   }
   const rendered = JSON.stringify(hover?.result);
-  if (hover?.error || !hover?.result || !/IO/.test(rendered)) {
-    throw new Error(`Expected a Lean hover containing IO, received: ${JSON.stringify(hover)}\nstderr: ${stderr}`);
+  if (hover?.error || !hover?.result || !expectedHoverPattern.test(rendered)) {
+    throw new Error(`Expected a Lean hover matching ${expectedHoverPattern}, received: ${JSON.stringify(hover)}\nstderr: ${stderr}`);
   }
   console.log(`Lean LSP hover OK: ${rendered}`);
 

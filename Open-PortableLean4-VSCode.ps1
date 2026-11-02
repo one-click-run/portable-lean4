@@ -101,9 +101,15 @@ if (-not (Test-Path -LiteralPath $settingsPath -PathType Leaf)) {
     [IO.File]::WriteAllText($settingsPath, (($settings | ConvertTo-Json) + [Environment]::NewLine), [Text.UTF8Encoding]::new($false))
 }
 
+$mathlibExample = Join-Path $root "examples\mathlib"
+$workspaceFolder = if (Test-Path -LiteralPath (Join-Path $mathlibExample ".lake\packages\mathlib\Mathlib.lean") -PathType Leaf) {
+    $mathlibExample
+} else {
+    Join-Path $root "examples\hello"
+}
 $workspace = Join-Path $root "Portable-Lean4.code-workspace"
 $workspaceDefinition = [ordered]@{
-    folders = @([ordered]@{ path = (Join-Path $root "examples\hello") })
+    folders = @([ordered]@{ path = $workspaceFolder })
     settings = [ordered]@{
         "terminal.integrated.env.windows" = [ordered]@{
             ELAN_HOME = $portable.ElanHome

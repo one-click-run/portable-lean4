@@ -15,5 +15,12 @@
         Sha256 = "fad2e980a191c15884cc1d80d170ffc5fa84f3774541020145b66d1a644c6111"
         License = "MIT OR Apache-2.0"
     }
+    Mathlib = @{
+        Version = "4.35.0"
+        Tag = "v4.35.0"
+        Commit = "56a005855ea17e0b0958f73ec801ae140b0a1679"
+        Url = "https://github.com/leanprover-community/mathlib4"
+        License = "Apache-2.0"
+    }
 }
 

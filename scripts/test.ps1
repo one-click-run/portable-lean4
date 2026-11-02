@@ -5,16 +5,22 @@ $repoRoot = (Resolve-Path (Join-Path $PSScriptRoot "..")).Path
 $requiredFiles = @(
     ".github\workflows\test.yml",
     ".github\workflows\publish-core.yml",
+    ".github\workflows\publish-full.yml",
     "scripts\build-core.ps1",
+    "scripts\build-full.ps1",
     "scripts\test-lean-lsp.js",
     "scripts\versions.psd1",
     "Initialize-PortableLean4.ps1",
     "Enter-PortableLean4.ps1",
     "Open-PortableLean4-VSCode.ps1",
     "init.ps1",
+    "init-full.ps1",
     "examples\hello\Main.lean",
     "examples\hello\lakefile.toml",
     "examples\hello\lean-toolchain",
+    "examples\mathlib\Main.lean",
+    "examples\mathlib\lakefile.toml",
+    "examples\mathlib\lean-toolchain",
     "vscode-extensions\manifest.json"
 )
 foreach ($relativePath in $requiredFiles) {
@@ -37,6 +43,16 @@ if ($versions.Lean.Toolchain -ne "leanprover/lean4:v$($versions.Lean.Version)") 
 }
 $toolchainFile = (Get-Content -LiteralPath (Join-Path $repoRoot "examples\hello\lean-toolchain") -Raw).Trim()
 if ($toolchainFile -ne $versions.Lean.Toolchain) { throw "The example toolchain is not pinned to the configured Lean version." }
+$mathlibToolchainFile = (Get-Content -LiteralPath (Join-Path $repoRoot "examples\mathlib\lean-toolchain") -Raw).Trim()
+if ($mathlibToolchainFile -ne $versions.Lean.Toolchain) { throw "The Mathlib example toolchain is not pinned to the configured Lean version." }
+if ($versions.Mathlib.Tag -ne "v$($versions.Lean.Version)" -or $versions.Mathlib.Version -ne $versions.Lean.Version) {
+    throw "Mathlib must use the release matching the pinned Lean version."
+}
+if ($versions.Mathlib.Commit -notmatch '^[0-9a-f]{40}$') { throw "The Mathlib commit must be a full Git SHA." }
+$mathlibLakefile = Get-Content -LiteralPath (Join-Path $repoRoot "examples\mathlib\lakefile.toml") -Raw
+if ($mathlibLakefile -notmatch [regex]::Escape("rev = `"$($versions.Mathlib.Tag)`"")) {
+    throw "The Mathlib example does not require the configured release tag."
+}
 
 $extensionManifest = Get-Content -LiteralPath (Join-Path $repoRoot "vscode-extensions\manifest.json") -Raw | ConvertFrom-Json
 if (@($extensionManifest.extensions).Count -lt 2) { throw "The extension manifest must include Lean 4 and Tombi." }
