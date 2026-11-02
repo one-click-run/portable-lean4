@@ -1,9 +1,14 @@
 param(
+    [string]$Edition = $env:ONE_CLICK_RUN_PORTABLE_LEAN4_EDITION,
     [string]$InstallName = $env:ONE_CLICK_RUN_PORTABLE_LEAN4_INSTALL_NAME,
     [string]$Repository = $(if ($env:ONE_CLICK_RUN_PORTABLE_LEAN4_REPOSITORY) { $env:ONE_CLICK_RUN_PORTABLE_LEAN4_REPOSITORY } else { "one-click-run/portable-lean4" }),
     [string]$ReleaseTag = $(if ($env:ONE_CLICK_RUN_PORTABLE_LEAN4_RELEASE_TAG) { $env:ONE_CLICK_RUN_PORTABLE_LEAN4_RELEASE_TAG } else { "core" }),
     [string]$Archive = $env:ONE_CLICK_RUN_PORTABLE_LEAN4_ARCHIVE,
     [string]$Checksum = $env:ONE_CLICK_RUN_PORTABLE_LEAN4_CHECKSUM,
+    [string]$CoreArchive,
+    [string]$CoreChecksum,
+    [string]$MathlibArchive,
+    [string]$MathlibChecksum,
     [switch]$Force = ($env:ONE_CLICK_RUN_PORTABLE_LEAN4_FORCE -eq "1")
 )
 
@@ -13,6 +18,91 @@ Set-StrictMode -Version Latest
 
 function Write-Step([string]$Message) {
     Write-Host "==> $Message" -ForegroundColor Cyan
+}
+
+function Select-Edition {
+    if ($Edition) {
+        $normalized = $Edition.Trim().ToLowerInvariant()
+        if ($normalized -eq "mathlib" -or $normalized -eq "complete") { $normalized = "full" }
+        if ($normalized -notin @("core", "full")) {
+            throw "Unknown edition '$Edition'. Choose core or full."
+        }
+        return $normalized
+    }
+
+    $choices = @(
+        [pscustomobject]@{
+            Edition = "core"
+            Name = "Core"
+            Download = "about 0.9 GB"
+            Contents = "Lean 4, Lake, compiler toolchain, and offline VS Code extensions"
+        },
+        [pscustomobject]@{
+            Edition = "full"
+            Name = "Full (Mathlib)"
+            Download = "about 3.0 GB"
+            Contents = "Core plus Mathlib sources, dependencies, and official build cache"
+        }
+    )
+
+    $grid = Get-Command Out-GridView -ErrorAction SilentlyContinue
+    if ($grid -and [Environment]::UserInteractive) {
+        $selected = $choices | Select-Object Name, Download, Contents, Edition |
+            Out-GridView -Title "Select a portable Lean 4 edition" -OutputMode Single
+        if ($selected) { return $selected.Edition }
+        return $null
+    }
+
+    Write-Host "Available portable Lean 4 editions:"
+    for ($index = 0; $index -lt $choices.Count; $index++) {
+        $choice = $choices[$index]
+        Write-Host ("  [{0}] {1,-15} {2} - {3}" -f ($index + 1), $choice.Name, $choice.Download, $choice.Contents)
+    }
+    $answer = Read-Host "Enter a number"
+    $selectedIndex = 0
+    if (-not [int]::TryParse($answer, [ref]$selectedIndex) -or $selectedIndex -lt 1 -or $selectedIndex -gt $choices.Count) {
+        throw "Invalid selection."
+    }
+    return $choices[$selectedIndex - 1].Edition
+}
+
+function Invoke-FullInstaller {
+    $localInstaller = if ($PSScriptRoot) { Join-Path $PSScriptRoot "init-full.ps1" } else { $null }
+    if ($localInstaller -and (Test-Path -LiteralPath $localInstaller -PathType Leaf)) {
+        $installerSource = [IO.File]::ReadAllText($localInstaller)
+    } else {
+        $installerUri = "https://raw.githubusercontent.com/$Repository/main/init-full.ps1"
+        Write-Step "Loading the Full edition installer"
+        $installerSource = (Invoke-WebRequest -Uri $installerUri -Headers @{ "User-Agent" = "one-click-run-portable-lean4" } -UseBasicParsing).Content
+    }
+    $arguments = @{ Repository = $Repository }
+    if ($InstallName) { $arguments.InstallName = $InstallName }
+    if ($Force) { $arguments.Force = $true }
+    if ($CoreArchive) { $arguments.CoreArchive = $CoreArchive }
+    if ($CoreChecksum) { $arguments.CoreChecksum = $CoreChecksum }
+    if ($MathlibArchive) { $arguments.MathlibArchive = $MathlibArchive }
+    if ($MathlibChecksum) { $arguments.MathlibChecksum = $MathlibChecksum }
+    & ([scriptblock]::Create($installerSource)) @arguments
+}
+
+if ($Archive -and ($CoreArchive -or $CoreChecksum -or $MathlibArchive -or $MathlibChecksum)) {
+    throw "Do not combine the Core -Archive option with Full edition archive options."
+}
+if (-not $Edition -and ($CoreArchive -or $CoreChecksum -or $MathlibArchive -or $MathlibChecksum)) {
+    $Edition = "full"
+}
+if (-not $Archive) {
+    $selectedEdition = Select-Edition
+    if (-not $selectedEdition) {
+        Write-Host "No edition selected. Installation cancelled."
+        return
+    }
+    if ($selectedEdition -eq "full") {
+        Invoke-FullInstaller
+        return
+    }
+} elseif ($Edition -and $Edition.Trim().ToLowerInvariant() -notin @("core")) {
+    throw "The Core -Archive option cannot be combined with Edition '$Edition'. Use -CoreArchive and -MathlibArchive for an offline Full installation."
 }
 
 function Receive-File([string]$Uri, [string]$Destination) {

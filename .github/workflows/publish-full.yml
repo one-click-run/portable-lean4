@@ -51,7 +51,8 @@ jobs:
           New-Item -ItemType Directory -Path $testRoot -Force | Out-Null
           Push-Location $testRoot
           try {
-            . "$env:GITHUB_WORKSPACE\init-full.ps1" `
+            . "$env:GITHUB_WORKSPACE\init.ps1" `
+              -Edition full `
               -CoreArchive $core.FullName `
               -CoreChecksum "$($core.FullName).sha256" `
               -MathlibArchive $mathlib.FullName `

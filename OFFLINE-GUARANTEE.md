@@ -29,7 +29,7 @@ Mathlib 完整版还承诺：
 - 安装其他 VS Code 扩展
 - 更新 VS Code 本体
 
-Core 包不包含 Mathlib；上述 Mathlib 能力仅适用于通过 `init-full.ps1` 安装的完整版。
+Core 包不包含 Mathlib；上述 Mathlib 能力仅适用于在统一 `init.ps1` 入口中选择 Full 安装的完整版。
 
 ## 系统影响
 

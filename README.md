@@ -6,25 +6,7 @@ Core 包包含 Lean 4、Lake、标准库、官方自带的 C/LLVM 工具链、�
 
 目前仅支持 Windows x86-64，固定使用 Lean **4.35.0**。完整版固定使用 Mathlib **v4.35.0**。
 
-## Mathlib 完整版（推荐）
-
-在希望创建环境的目录中打开 PowerShell：
-
-```powershell
-irm "https://raw.githubusercontent.com/one-click-run/portable-lean4/main/init-full.ps1" | iex
-```
-
-安装器会分别下载并校验 Core 与 Mathlib 离线层，最终合并成一个可移动目录。VS Code 入口默认打开 `examples\mathlib`，其中包含已经解析并缓存好的全部依赖。
-
-完全离线安装时，复制 Core ZIP、Mathlib 的全部 `.partNNN` 分片，以及所有相邻的 `.sha256` 文件。将 `-MathlibArchive` 指向第一个分片，安装器会逐片校验并自动拼接：
-
-```powershell
-.\init-full.ps1 `
-  -CoreArchive .\portable-lean4-core-4.35.0-windows-x86_64.zip `
-  -MathlibArchive .\portable-lean4-mathlib-4.35.0-windows-x86_64.zip.part001
-```
-
-## Core 版
+## 使用
 
 在希望创建环境的目录中打开 PowerShell：
 
@@ -32,17 +14,36 @@ irm "https://raw.githubusercontent.com/one-click-run/portable-lean4/main/init-fu
 irm "https://raw.githubusercontent.com/one-click-run/portable-lean4/main/init.ps1" | iex
 ```
 
+安装器会像 portable-idris2 一样显示版本选择器：
+
+- **Core**：Lean、Lake、编译工具链和离线 VS Code 扩展，约 0.9 GB。
+- **Full (Mathlib)**：Core 加 Mathlib 源码、固定依赖和官方构建缓存，约 3.0 GB。
+
+有 `Out-GridView` 时使用图形选择窗口，否则在终端输入编号。完整版会分别下载并校验 Core 与 Mathlib 离线层，最终合并成一个可移动目录；VS Code 默认打开 `examples\mathlib`。
+
+无人值守安装可设置 `ONE_CLICK_RUN_PORTABLE_LEAN4_EDITION=core` 或 `full`。本地脚本也可使用 `-Edition core` / `-Edition full`。
+
 完成后会生成两个入口：
 
 - `OCR-portable-lean4-<版本>.cmd`：进入便携命令行环境。
-- `OCR-portable-lean4-<版本>-VSCode.cmd`：用隔离配置打开包内示例。
+- `OCR-portable-lean4-<版本>-VSCode.cmd`：使用隔离配置打开对应示例。
 
-VS Code 入口需要机器上已有 Microsoft Visual Studio Code。Lean 4 与 Tombi 扩展均从包内 VSIX 离线安装，不访问 Marketplace，不读写用户的全局扩展目录。可通过 `ONE_CLICK_RUN_VSCODE` 指定 `code.cmd` 或 `Code.exe`。
+VS Code 入口需要机器上已有 Microsoft Visual Studio Code。Lean 4 与 Tombi 扩展均从包内 VSIX 离线安装，不访问 Marketplace，不读写用户的全局扩展目录。
 
-完全离线的机器可以同时复制 ZIP 与相邻的 `.sha256` 文件，然后执行：
+## 完全离线安装
+
+完全离线安装时，复制 Core ZIP、Mathlib 的全部 `.partNNN` 分片，以及所有相邻的 `.sha256` 文件。将 `-MathlibArchive` 指向第一个分片，安装器会逐片校验并自动拼接：
 
 ```powershell
-.\init.ps1 `
+.\init.ps1 -Edition full `
+  -CoreArchive .\portable-lean4-core-4.35.0-windows-x86_64.zip `
+  -MathlibArchive .\portable-lean4-mathlib-4.35.0-windows-x86_64.zip.part001
+```
+
+Core 离线安装只需 Core ZIP 和相邻校验文件：
+
+```powershell
+.\init.ps1 -Edition core `
   -Archive .\portable-lean4-core-4.35.0-windows-x86_64.zip `
   -Checksum .\portable-lean4-core-4.35.0-windows-x86_64.zip.sha256
 ```
