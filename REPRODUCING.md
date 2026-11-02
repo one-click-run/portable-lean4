@@ -43,5 +43,5 @@ cd portable-lean4
 .\scripts\build-full.ps1 -OutputDirectory .\dist-full
 ```
 
-输出为 `portable-lean4-mathlib-4.35.0-windows-x86_64.zip` 及 SHA-256、来源清单和 SPDX SBOM。安装时由 `init-full.ps1` 与经过独立校验的 Core ZIP 合并。
+逻辑输出为 `portable-lean4-mathlib-4.35.0-windows-x86_64.zip`，发布时会为适应 GitHub 单资产上限拆为连续的 `.partNNN` 文件。每个分片和完整 ZIP 都有 SHA-256，另附来源清单和 SPDX SBOM。`init-full.ps1` 会自动校验、拼接并与经过独立校验的 Core ZIP 合并。
 

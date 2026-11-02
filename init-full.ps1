@@ -56,6 +56,45 @@ function Get-ReleasePair([string]$Tag, [string]$Pattern) {
     return [pscustomobject]@{ Archive = $archiveAsset; Checksum = $checksumAssets[0] }
 }
 
+function Get-MathlibReleasePackage([string]$Tag) {
+    $release = Invoke-RestMethod -Uri "https://api.github.com/repos/$Repository/releases/tags/$Tag" -Headers $script:headers
+    $wholeArchives = @($release.assets | Where-Object { $_.name -match '^portable-lean4-mathlib-.*-windows-x86_64\.zip$' })
+    if ($wholeArchives.Count -eq 1) {
+        $checksum = @($release.assets | Where-Object { $_.name -eq "$($wholeArchives[0].name).sha256" })
+        if ($checksum.Count -ne 1) { throw "Missing checksum for $($wholeArchives[0].name)." }
+        return [pscustomobject]@{
+            Mode = "whole"
+            BaseName = $wholeArchives[0].name
+            Archive = $wholeArchives[0]
+            Checksum = $checksum[0]
+            Parts = @()
+        }
+    }
+
+    $parts = @($release.assets | Where-Object { $_.name -match '^portable-lean4-mathlib-.*-windows-x86_64\.zip\.part\d{3}$' } | Sort-Object name)
+    if ($parts.Count -lt 2) { throw "Release $Tag contains neither a complete Mathlib archive nor a valid multipart archive." }
+    $baseName = $parts[0].name -replace '\.part\d{3}$', ''
+    for ($index = 0; $index -lt $parts.Count; $index++) {
+        $expectedName = "{0}.part{1:D3}" -f $baseName, ($index + 1)
+        if ($parts[$index].name -ne $expectedName) { throw "Mathlib release parts are not contiguous at $expectedName." }
+    }
+    $wholeChecksum = @($release.assets | Where-Object { $_.name -eq "$baseName.sha256" })
+    if ($wholeChecksum.Count -ne 1) { throw "Missing whole-archive checksum for $baseName." }
+    $partPairs = @($parts | ForEach-Object {
+        $part = $_
+        $partChecksum = @($release.assets | Where-Object { $_.name -eq "$($part.name).sha256" })
+        if ($partChecksum.Count -ne 1) { throw "Missing checksum for $($part.name)." }
+        [pscustomobject]@{ Archive = $part; Checksum = $partChecksum[0] }
+    })
+    return [pscustomobject]@{
+        Mode = "parts"
+        BaseName = $baseName
+        Archive = $null
+        Checksum = $wholeChecksum[0]
+        Parts = $partPairs
+    }
+}
+
 function Receive-ReleasePair($Pair, [string]$WorkDirectory) {
     $archivePath = Join-Path $WorkDirectory $Pair.Archive.name
     $checksumPath = Join-Path $WorkDirectory $Pair.Checksum.name
@@ -78,6 +117,41 @@ function Receive-ReleasePair($Pair, [string]$WorkDirectory) {
     return [pscustomobject]@{ Archive = $archivePath; Checksum = $checksumPath }
 }
 
+function Receive-MathlibPackage($Package, [string]$WorkDirectory) {
+    if ($Package.Mode -eq "whole") {
+        return (Receive-ReleasePair $Package $WorkDirectory)
+    }
+
+    $archivePath = Join-Path $WorkDirectory $Package.BaseName
+    $checksumPath = Join-Path $WorkDirectory $Package.Checksum.name
+    if (-not (Test-Path -LiteralPath $checksumPath -PathType Leaf)) {
+        Receive-File $Package.Checksum.browser_download_url $checksumPath
+    }
+    if ((Test-Path -LiteralPath $archivePath -PathType Leaf)) {
+        try {
+            Assert-Verified $archivePath $checksumPath
+            Write-Step "Reusing verified assembled archive $($Package.BaseName)"
+            return [pscustomobject]@{ Archive = $archivePath; Checksum = $checksumPath }
+        } catch {
+            Remove-Item -LiteralPath $archivePath -Force
+        }
+    }
+
+    $partFiles = @($Package.Parts | ForEach-Object { Receive-ReleasePair $_ $WorkDirectory })
+    Write-Step "Assembling $($Package.BaseName) from $($partFiles.Count) verified parts"
+    $output = [IO.File]::Create($archivePath)
+    try {
+        foreach ($part in $partFiles) {
+            $input = [IO.File]::OpenRead($part.Archive)
+            try { $input.CopyTo($output) } finally { $input.Dispose() }
+        }
+    } finally {
+        $output.Dispose()
+    }
+    Assert-Verified $archivePath $checksumPath
+    return [pscustomobject]@{ Archive = $archivePath; Checksum = $checksumPath }
+}
+
 if ($env:PROCESSOR_ARCHITECTURE -ne "AMD64" -and $env:PROCESSOR_ARCHITEW6432 -ne "AMD64") {
     throw "Only Windows x86-64 is currently supported."
 }
@@ -88,19 +162,35 @@ if (($CoreArchive -or $CoreChecksum -or $MathlibArchive -or $MathlibChecksum) -a
 $installBase = (Get-Location).Path
 $script:headers = @{ Accept = "application/vnd.github+json"; "User-Agent" = "one-click-run-portable-lean4" }
 $localMode = [bool]$CoreArchive
+$mathlibPartFilesLocal = @()
 if ($localMode) {
     $coreLocal = (Resolve-Path -LiteralPath $CoreArchive).Path
-    $mathlibLocal = (Resolve-Path -LiteralPath $MathlibArchive).Path
+    $mathlibInput = (Resolve-Path -LiteralPath $MathlibArchive).Path
     if (-not $CoreChecksum) { $CoreChecksum = "$coreLocal.sha256" }
-    if (-not $MathlibChecksum) { $MathlibChecksum = "$mathlibLocal.sha256" }
     $coreChecksumLocal = (Resolve-Path -LiteralPath $CoreChecksum).Path
+    if ((Split-Path -Leaf $mathlibInput) -match '^(.*\.zip)\.part001$') {
+        $mathlibName = $Matches[1]
+        $partPrefix = Join-Path (Split-Path -Parent $mathlibInput) $mathlibName
+        $mathlibPartFilesLocal = @(Get-ChildItem -Path "$partPrefix.part*" -File | Where-Object { $_.Name -match '\.part\d{3}$' } | Sort-Object Name | ForEach-Object { $_.FullName })
+        if ($mathlibPartFilesLocal.Count -lt 2) { throw "The local multipart Mathlib archive is incomplete." }
+        for ($index = 0; $index -lt $mathlibPartFilesLocal.Count; $index++) {
+            $expectedName = "{0}.part{1:D3}" -f $mathlibName, ($index + 1)
+            if ((Split-Path -Leaf $mathlibPartFilesLocal[$index]) -ne $expectedName) { throw "Local Mathlib parts are not contiguous at $expectedName." }
+            [void](Resolve-Path -LiteralPath "$($mathlibPartFilesLocal[$index]).sha256")
+        }
+        if (-not $MathlibChecksum) { $MathlibChecksum = "$partPrefix.sha256" }
+        $mathlibLocal = $null
+    } else {
+        $mathlibLocal = $mathlibInput
+        $mathlibName = Split-Path -Leaf $mathlibLocal
+        if (-not $MathlibChecksum) { $MathlibChecksum = "$mathlibLocal.sha256" }
+    }
     $mathlibChecksumLocal = (Resolve-Path -LiteralPath $MathlibChecksum).Path
-    $mathlibName = Split-Path -Leaf $mathlibLocal
 } else {
     Write-Step "Reading the Core and Full releases from $Repository"
     $corePair = Get-ReleasePair $CoreReleaseTag '^portable-lean4-core-.*-windows-x86_64\.zip$'
-    $mathlibPair = Get-ReleasePair $FullReleaseTag '^portable-lean4-mathlib-.*-windows-x86_64\.zip$'
-    $mathlibName = $mathlibPair.Archive.name
+    $mathlibPackage = Get-MathlibReleasePackage $FullReleaseTag
+    $mathlibName = $mathlibPackage.BaseName
 }
 
 $versionLabel = $mathlibName -replace '^portable-lean4-mathlib-', '' -replace '-windows-x86_64\.zip$', ''
@@ -144,10 +234,25 @@ try {
 
     if ($localMode) {
         $coreFiles = [pscustomobject]@{ Archive = $coreLocal; Checksum = $coreChecksumLocal }
-        $mathlibFiles = [pscustomobject]@{ Archive = $mathlibLocal; Checksum = $mathlibChecksumLocal }
+        if ($mathlibPartFilesLocal.Count -gt 0) {
+            $assembledLocal = Join-Path $work $mathlibName
+            $output = [IO.File]::Create($assembledLocal)
+            try {
+                foreach ($partPath in $mathlibPartFilesLocal) {
+                    Assert-Verified $partPath "$partPath.sha256"
+                    $input = [IO.File]::OpenRead($partPath)
+                    try { $input.CopyTo($output) } finally { $input.Dispose() }
+                }
+            } finally {
+                $output.Dispose()
+            }
+            $mathlibFiles = [pscustomobject]@{ Archive = $assembledLocal; Checksum = $mathlibChecksumLocal }
+        } else {
+            $mathlibFiles = [pscustomobject]@{ Archive = $mathlibLocal; Checksum = $mathlibChecksumLocal }
+        }
     } else {
         $coreFiles = Receive-ReleasePair $corePair $work
-        $mathlibFiles = Receive-ReleasePair $mathlibPair $work
+        $mathlibFiles = Receive-MathlibPackage $mathlibPackage $work
     }
 
     Write-Step "Verifying Core and Mathlib SHA-256 files"

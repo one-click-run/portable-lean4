@@ -16,12 +16,12 @@ irm "https://raw.githubusercontent.com/one-click-run/portable-lean4/main/init-fu
 
 安装器会分别下载并校验 Core 与 Mathlib 离线层，最终合并成一个可移动目录。VS Code 入口默认打开 `examples\mathlib`，其中包含已经解析并缓存好的全部依赖。
 
-完全离线安装时，同时复制两个 ZIP 及各自的 `.sha256` 文件：
+完全离线安装时，复制 Core ZIP、Mathlib 的全部 `.partNNN` 分片，以及所有相邻的 `.sha256` 文件。将 `-MathlibArchive` 指向第一个分片，安装器会逐片校验并自动拼接：
 
 ```powershell
 .\init-full.ps1 `
   -CoreArchive .\portable-lean4-core-4.35.0-windows-x86_64.zip `
-  -MathlibArchive .\portable-lean4-mathlib-4.35.0-windows-x86_64.zip
+  -MathlibArchive .\portable-lean4-mathlib-4.35.0-windows-x86_64.zip.part001
 ```
 
 ## Core 版

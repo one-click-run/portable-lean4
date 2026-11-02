@@ -45,7 +45,7 @@ jobs:
         shell: pwsh
         run: |
           $core = Get-ChildItem "$env:GITHUB_WORKSPACE\.full-build\core-dist\portable-lean4-core-*.zip" | Select-Object -First 1
-          $mathlib = Get-ChildItem "$env:RUNNER_TEMP\dist-full\portable-lean4-mathlib-*.zip" | Select-Object -First 1
+          $mathlib = Get-ChildItem "$env:RUNNER_TEMP\dist-full\portable-lean4-mathlib-*.zip.part001" | Select-Object -First 1
           $node = (Get-Command node -ErrorAction Stop).Source
           $testRoot = Join-Path $env:RUNNER_TEMP "数学 路径\offline-full"
           New-Item -ItemType Directory -Path $testRoot -Force | Out-Null
@@ -55,7 +55,6 @@ jobs:
               -CoreArchive $core.FullName `
               -CoreChecksum "$($core.FullName).sha256" `
               -MathlibArchive $mathlib.FullName `
-              -MathlibChecksum "$($mathlib.FullName).sha256" `
               -InstallName moved
             $root = Join-Path $testRoot "OCR-portable-lean4-moved"
             & powershell -NoProfile -ExecutionPolicy Bypass -File "$root\Enter-PortableLean4.ps1" -CheckMathlib

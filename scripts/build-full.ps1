@@ -261,13 +261,44 @@ if ($sevenZip) {
 }
 
 $archiveInfo = Get-Item -LiteralPath $archive
-if ($archiveInfo.Length -ge 1950000000) {
-    throw "The Mathlib overlay is $($archiveInfo.Length) bytes and is too close to GitHub's per-asset limit. Split the release before publishing."
-}
 $hash = (Get-FileHash -LiteralPath $archive -Algorithm SHA256).Hash.ToLowerInvariant()
 [IO.File]::WriteAllText("$archive.sha256", "$hash  $assetName`n", [Text.UTF8Encoding]::new($false))
 Copy-Item -LiteralPath $manifestPath -Destination (Join-Path $OutputDirectory "$assetName.source-manifest.json") -Force
 Copy-Item -LiteralPath $sbomPath -Destination (Join-Path $OutputDirectory "$assetName.spdx.json") -Force
 
-Write-Host "Created $archive ($($archiveInfo.Length) bytes)" -ForegroundColor Green
+if ($archiveInfo.Length -ge 1500000000) {
+    Write-Step "Splitting the overlay into GitHub-safe release assets"
+    $partSize = 1500000000L
+    $buffer = New-Object byte[] (8MB)
+    $input = [IO.File]::OpenRead($archive)
+    try {
+        $partNumber = 1
+        while ($input.Position -lt $input.Length) {
+            $partPath = "{0}.part{1:D3}" -f $archive, $partNumber
+            $output = [IO.File]::Create($partPath)
+            try {
+                $remaining = [Math]::Min($partSize, $input.Length - $input.Position)
+                while ($remaining -gt 0) {
+                    $readLength = [int][Math]::Min([long]$buffer.Length, $remaining)
+                    $count = $input.Read($buffer, 0, $readLength)
+                    if ($count -le 0) { throw "Unexpected end of Mathlib archive while creating release parts." }
+                    $output.Write($buffer, 0, $count)
+                    $remaining -= $count
+                }
+            } finally {
+                $output.Dispose()
+            }
+            $partName = Split-Path -Leaf $partPath
+            $partHash = (Get-FileHash -LiteralPath $partPath -Algorithm SHA256).Hash.ToLowerInvariant()
+            [IO.File]::WriteAllText("$partPath.sha256", "$partHash  $partName`n", [Text.UTF8Encoding]::new($false))
+            $partNumber++
+        }
+    } finally {
+        $input.Dispose()
+    }
+    Remove-Item -LiteralPath $archive -Force
+    Write-Host "Created $($partNumber - 1) verified parts for $assetName ($($archiveInfo.Length) bytes total)" -ForegroundColor Green
+} else {
+    Write-Host "Created $archive ($($archiveInfo.Length) bytes)" -ForegroundColor Green
+}
 Write-Host "Created $archive.sha256" -ForegroundColor Green
