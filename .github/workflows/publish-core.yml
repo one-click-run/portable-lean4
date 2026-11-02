@@ -28,7 +28,9 @@ jobs:
         run: .\scripts\build-core.ps1 -OutputDirectory "$env:RUNNER_TEMP\dist"
 
       - name: Test verified local archive installation after moving it
-        shell: powershell
+        # PowerShell 7 reads the generated UTF-8 runner script correctly; this
+        # step intentionally uses a non-ASCII path to verify portability.
+        shell: pwsh
         run: |
           $asset = Get-ChildItem "$env:RUNNER_TEMP\dist\portable-lean4-core-*.zip" | Select-Object -First 1
           $testRoot = Join-Path $env:RUNNER_TEMP "路径 with spaces\offline-install"
@@ -55,7 +57,7 @@ jobs:
           }
 
       - name: Publish release assets
-        shell: powershell
+        shell: pwsh
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
