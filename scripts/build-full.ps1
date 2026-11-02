@@ -21,6 +21,7 @@ function Copy-OverlayFile([string]$RelativePath, [string]$SourceRoot, [string]$D
 
 $repoRoot = (Resolve-Path (Join-Path $PSScriptRoot "..")).Path
 $versions = Import-PowerShellDataFile (Join-Path $PSScriptRoot "versions.psd1")
+$powerShellExe = (Get-Command powershell.exe -ErrorAction Stop).Source
 if ($versions.Mathlib.Version -ne $versions.Lean.Version) {
     throw "Lean and Mathlib release versions must match."
 }
@@ -119,7 +120,7 @@ try {
     [void](Initialize-PortableLean4Environment -Root $combined)
     $env:HTTP_PROXY = "http://127.0.0.1:9"
     $env:HTTPS_PROXY = "http://127.0.0.1:9"
-    & powershell -NoProfile -ExecutionPolicy Bypass -File (Join-Path $combined "Enter-PortableLean4.ps1") -CheckMathlib
+    & $powerShellExe -NoProfile -ExecutionPolicy Bypass -File (Join-Path $combined "Enter-PortableLean4.ps1") -CheckMathlib
     if ($LASTEXITCODE -ne 0) { throw "The combined environment failed its offline Mathlib test." }
 } finally {
     $env:PATH = $savedPath
