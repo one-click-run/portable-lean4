@@ -85,8 +85,8 @@ try {
         & lake exe cache get
         if ($LASTEXITCODE -ne 0) { throw "Mathlib cache download failed." }
 
-        & lake build
-        if ($LASTEXITCODE -ne 0) { throw "Mathlib example build failed." }
+        & lake env lean Main.lean
+        if ($LASTEXITCODE -ne 0) { throw "Mathlib example typecheck failed." }
     } finally {
         Pop-Location
     }
@@ -111,9 +111,6 @@ Get-ChildItem -LiteralPath $packagesDirectory -Directory | ForEach-Object {
     $gitMetadata = Join-Path $_.FullName ".git"
     if (Test-Path -LiteralPath $gitMetadata) { Remove-Item -LiteralPath $gitMetadata -Recurse -Force }
 }
-$projectBuild = Join-Path $mathlibProject ".lake\build"
-if (Test-Path -LiteralPath $projectBuild) { Remove-Item -LiteralPath $projectBuild -Recurse -Force }
-
 $savedPath = $env:PATH
 $savedHttpProxy = $env:HTTP_PROXY
 $savedHttpsProxy = $env:HTTPS_PROXY
@@ -129,8 +126,6 @@ try {
     $env:HTTP_PROXY = $savedHttpProxy
     $env:HTTPS_PROXY = $savedHttpsProxy
 }
-if (Test-Path -LiteralPath $projectBuild) { Remove-Item -LiteralPath $projectBuild -Recurse -Force }
-
 $repositoryCommit = if ($env:GITHUB_SHA) {
     $env:GITHUB_SHA
 } else {

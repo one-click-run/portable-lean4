@@ -68,7 +68,7 @@ jobs:
               (Join-Path $portable.ElanBin "lean.exe") `
               (Join-Path $root "examples\mathlib") `
               (Join-Path $root "examples\mathlib\Main.lean") `
-              4 20 Finset
+              2 14 Finset
             if ($LASTEXITCODE -ne 0) { throw "Mathlib language server hover test failed." }
           } finally {
             Pop-Location

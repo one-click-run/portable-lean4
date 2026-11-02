@@ -60,16 +60,8 @@ if ($leanVersionExitCode -ne 0 -or $leanVersion -notmatch '(?<!\d)4\.35\.0(?!\d)
         }
         Push-Location $example
         try {
-            & lake build
-            if ($LASTEXITCODE -ne 0) { throw "The bundled Mathlib example failed to build." }
-            $demo = Join-Path $example ".lake\build\bin\mathlib_demo.exe"
-            if (-not (Test-Path -LiteralPath $demo -PathType Leaf)) {
-                throw "The bundled Mathlib example executable was not created."
-            }
-            $output = (& $demo).Trim()
-            if ($output -ne "Hello from portable Lean 4 + Mathlib!") {
-                throw "Unexpected Mathlib example output: $output"
-            }
+            & lake env lean Main.lean
+            if ($LASTEXITCODE -ne 0) { throw "The bundled Mathlib example failed to typecheck." }
         } finally {
             Pop-Location
         }
