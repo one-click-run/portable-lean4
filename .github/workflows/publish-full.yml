@@ -64,10 +64,10 @@ jobs:
             . "$root\Initialize-PortableLean4.ps1"
             $portable = Initialize-PortableLean4Environment -Root $root -IsolateUserProfile
             & $node "$env:GITHUB_WORKSPACE\scripts\test-lean-lsp.js" `
-              (Join-Path $portable.ElanBin "lean.exe") `
+              (Join-Path $portable.ElanBin "lake.exe") `
               (Join-Path $root "examples\mathlib") `
               (Join-Path $root "examples\mathlib\Main.lean") `
-              2 14 Finset
+              2 14 Finset lake
             if ($LASTEXITCODE -ne 0) { throw "Mathlib language server hover test failed." }
           } finally {
             Pop-Location

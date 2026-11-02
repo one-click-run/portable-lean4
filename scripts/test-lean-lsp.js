@@ -3,14 +3,15 @@ const path = require("node:path");
 const { pathToFileURL } = require("node:url");
 const { spawn } = require("node:child_process");
 
-const [executable, workingDirectory, documentPath, hoverLine = "0", hoverCharacter = "12", expectedHover = "IO"] = process.argv.slice(2);
+const [executable, workingDirectory, documentPath, hoverLine = "0", hoverCharacter = "12", expectedHover = "IO", serverMode = "lean"] = process.argv.slice(2);
 if (!executable || !workingDirectory || !documentPath) {
-  throw new Error("Usage: node test-lean-lsp.js <lean.exe> <working-directory> <Main.lean> [line] [character] [expected-hover]");
+  throw new Error("Usage: node test-lean-lsp.js <lean-or-lake.exe> <working-directory> <Main.lean> [line] [character] [expected-hover] [lean|lake]");
 }
 const hoverPosition = { line: Number(hoverLine), character: Number(hoverCharacter) };
 const expectedHoverPattern = new RegExp(expectedHover);
+if (serverMode !== "lean" && serverMode !== "lake") throw new Error(`Unknown server mode: ${serverMode}`);
 
-const child = spawn(executable, ["--server"], {
+const child = spawn(executable, serverMode === "lake" ? ["serve"] : ["--server"], {
   cwd: workingDirectory,
   shell: false,
   stdio: ["pipe", "pipe", "pipe"],
