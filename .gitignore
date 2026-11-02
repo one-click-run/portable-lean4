@@ -1,0 +1,7 @@
+.build/
+.cache/
+dist/
+artifacts/
+*.zip
+*.sha256
+

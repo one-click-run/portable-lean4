@@ -1,0 +1,79 @@
+name: Publish Core
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: windows-latest
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Restore verified upstream download cache
+        uses: actions/cache@v4
+        with:
+          path: .cache
+          key: portable-lean4-core-v1-${{ hashFiles('scripts/versions.psd1', 'vscode-extensions/manifest.json') }}
+
+      - name: Validate repository
+        shell: powershell
+        run: .\scripts\test.ps1
+
+      - name: Build and test Core archive
+        shell: powershell
+        run: .\scripts\build-core.ps1 -OutputDirectory "$env:RUNNER_TEMP\dist"
+
+      - name: Test verified local archive installation after moving it
+        shell: powershell
+        run: |
+          $asset = Get-ChildItem "$env:RUNNER_TEMP\dist\portable-lean4-core-*.zip" | Select-Object -First 1
+          $testRoot = Join-Path $env:RUNNER_TEMP "路径 with spaces\offline-install"
+          New-Item -ItemType Directory -Path $testRoot -Force | Out-Null
+          Push-Location $testRoot
+          try {
+            . "$env:GITHUB_WORKSPACE\init.ps1" -Archive $asset.FullName -Checksum "$($asset.FullName).sha256" -InstallName moved
+            $root = Join-Path $testRoot "OCR-portable-lean4-moved"
+            & powershell -NoProfile -ExecutionPolicy Bypass -File "$root\Enter-PortableLean4.ps1" -CheckProject
+            if ($LASTEXITCODE -ne 0) { throw "Moved CLI environment test failed." }
+            & powershell -NoProfile -ExecutionPolicy Bypass -File "$root\Open-PortableLean4-VSCode.ps1" -Check
+            if ($LASTEXITCODE -ne 0) { throw "Moved VS Code integration test failed." }
+            & powershell -NoProfile -ExecutionPolicy Bypass -File "$root\Open-PortableLean4-VSCode.ps1" -CheckExtensions
+            if ($LASTEXITCODE -ne 0) { throw "Offline VSIX installation test failed." }
+            . "$root\Initialize-PortableLean4.ps1"
+            $portable = Initialize-PortableLean4Environment -Root $root -IsolateUserProfile
+            & node "$env:GITHUB_WORKSPACE\scripts\test-lean-lsp.js" `
+              (Join-Path $portable.ElanBin "lean.exe") `
+              (Join-Path $root "examples\hello") `
+              (Join-Path $root "examples\hello\Main.lean")
+            if ($LASTEXITCODE -ne 0) { throw "Lean language server hover test failed." }
+          } finally {
+            Pop-Location
+          }
+
+      - name: Publish release assets
+        shell: powershell
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          $notes = @"
+          Windows x86-64 portable Lean 4 Core environment.
+
+          Fixed toolchain: Lean 4.35.0. The archive contains isolated elan, Lake,
+          the standard library, compiler toolchain, and pinned offline VSIX files.
+
+          Every ZIP has a matching SHA-256 file. Build source: $env:GITHUB_SHA
+          Build log: $env:GITHUB_SERVER_URL/$env:GITHUB_REPOSITORY/actions/runs/$env:GITHUB_RUN_ID
+          "@
+          gh release view core --repo $env:GITHUB_REPOSITORY *> $null
+          if ($LASTEXITCODE -ne 0) {
+            gh release create core --repo $env:GITHUB_REPOSITORY --title "Portable Lean 4 Core" --notes $notes
+          }
+          Get-ChildItem "$env:RUNNER_TEMP\dist" -File | ForEach-Object {
+            gh release upload core $_.FullName --repo $env:GITHUB_REPOSITORY --clobber
+            if ($LASTEXITCODE -ne 0) { throw "Failed to upload $($_.Name)." }
+          }
+
