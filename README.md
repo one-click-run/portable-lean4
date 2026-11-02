@@ -21,6 +21,8 @@ irm "https://raw.githubusercontent.com/one-click-run/portable-lean4/main/init.ps
 
 有 `Out-GridView` 时使用图形选择窗口，否则在终端输入编号。完整版会分别下载并校验 Core 与 Mathlib 离线层，最终合并成一个可移动目录；VS Code 默认打开 `examples\mathlib`。
 
+完整版首次自检可能因 Mathlib 缓存和 Windows Defender 扫描而持续数分钟。安装器会在同一行显示旋转状态和已用时间，不会反复刷屏；若检查失败，则会保留并显示 Lean 的原始输出。
+
 无人值守安装可设置 `ONE_CLICK_RUN_PORTABLE_LEAN4_EDITION=core` 或 `full`。本地脚本也可使用 `-Edition core` / `-Edition full`。
 
 完成后会生成两个入口：

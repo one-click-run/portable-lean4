@@ -269,6 +269,9 @@ try {
         throw "The Mathlib overlay has an invalid layout."
     }
     Write-Step "Checking the extracted full environment"
+    Write-Host "Mathlib's first self-check may be quiet for several minutes." -ForegroundColor Yellow
+    Write-Host "Mathlib 首次自检可能数分钟没有输出，这是正常现象；请保持窗口开启。" -ForegroundColor Yellow
+    Write-Host "Windows Defender may scan thousands of cached files during this step." -ForegroundColor DarkGray
     & powershell -NoProfile -ExecutionPolicy Bypass -File (Join-Path $staging "Enter-PortableLean4.ps1") -CheckMathlib
     if ($LASTEXITCODE -ne 0) { throw "The extracted Mathlib environment failed its self-check." }
     & powershell -NoProfile -ExecutionPolicy Bypass -File (Join-Path $staging "Open-PortableLean4-VSCode.ps1") -Check

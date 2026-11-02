@@ -58,12 +58,36 @@ if ($leanVersionExitCode -ne 0 -or $leanVersion -notmatch '(?<!\d)4\.35\.0(?!\d)
         if (-not (Test-Path -LiteralPath (Join-Path $example ".lake\packages\mathlib\Mathlib.lean") -PathType Leaf)) {
             throw "The bundled Mathlib source tree is missing."
         }
-        Push-Location $example
+        $stdoutLog = Join-Path ([IO.Path]::GetTempPath()) ("portable-lean4-mathlib-{0}.stdout.log" -f [Guid]::NewGuid().ToString("N"))
+        $stderrLog = Join-Path ([IO.Path]::GetTempPath()) ("portable-lean4-mathlib-{0}.stderr.log" -f [Guid]::NewGuid().ToString("N"))
+        $spinner = @("|", "/", "-", "\")
+        $spinnerIndex = 0
+        $timer = [Diagnostics.Stopwatch]::StartNew()
         try {
-            & lake env lean Main.lean
-            if ($LASTEXITCODE -ne 0) { throw "The bundled Mathlib example failed to typecheck." }
+            $lakePath = (Get-Command lake -ErrorAction Stop).Source
+            $checkProcess = Start-Process -FilePath $lakePath -ArgumentList @("env", "lean", "Main.lean") `
+                -WorkingDirectory $example -RedirectStandardOutput $stdoutLog -RedirectStandardError $stderrLog -PassThru
+            while (-not $checkProcess.HasExited) {
+                $elapsed = $timer.Elapsed.ToString("hh\:mm\:ss")
+                Write-Host ("`r[{0}] Typechecking the bundled Mathlib example... {1}" -f $spinner[$spinnerIndex], $elapsed) -NoNewline -ForegroundColor Yellow
+                $spinnerIndex = ($spinnerIndex + 1) % $spinner.Count
+                Start-Sleep -Milliseconds 150
+                $checkProcess.Refresh()
+            }
+            $checkProcess.WaitForExit()
+            $timer.Stop()
+            Write-Host ("`r{0}`r" -f (" " * 78)) -NoNewline
+
+            $stdout = if (Test-Path -LiteralPath $stdoutLog) { Get-Content -LiteralPath $stdoutLog -Raw } else { "" }
+            $stderr = if (Test-Path -LiteralPath $stderrLog) { Get-Content -LiteralPath $stderrLog -Raw } else { "" }
+            if ($stdout) { Write-Host $stdout.TrimEnd() }
+            if ($stderr) { Write-Host $stderr.TrimEnd() -ForegroundColor Red }
+            if ($checkProcess.ExitCode -ne 0) { throw "The bundled Mathlib example failed to typecheck." }
+            Write-Host ("Mathlib typecheck completed in {0}." -f $timer.Elapsed.ToString("hh\:mm\:ss")) -ForegroundColor Green
         } finally {
-            Pop-Location
+            foreach ($log in @($stdoutLog, $stderrLog)) {
+                if (Test-Path -LiteralPath $log) { Remove-Item -LiteralPath $log -Force }
+            }
         }
     }
 
