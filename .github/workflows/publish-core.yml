@@ -27,6 +27,23 @@ jobs:
         shell: powershell
         run: .\scripts\build-core.ps1 -OutputDirectory "$env:RUNNER_TEMP\dist"
 
+      - name: Provision VS Code host for integration test
+        # VS Code is deliberately an external prerequisite of the Core archive.
+        # The hosted Windows image does not include it, so provide a clean host
+        # while keeping extension installation fully local to the bundled VSIXes.
+        shell: pwsh
+        run: |
+          $archive = Join-Path $env:RUNNER_TEMP "vscode-win32-x64.zip"
+          $codeRoot = Join-Path $env:RUNNER_TEMP "vscode-host"
+          curl.exe --fail --location --silent --show-error `
+            "https://update.code.visualstudio.com/latest/win32-x64-archive/stable" `
+            --output $archive
+          if ($LASTEXITCODE -ne 0) { throw "Failed to download the VS Code integration-test host." }
+          [IO.Compression.ZipFile]::ExtractToDirectory($archive, $codeRoot)
+          $code = Join-Path $codeRoot "bin\code.cmd"
+          if (-not (Test-Path -LiteralPath $code -PathType Leaf)) { throw "VS Code CLI is missing after extraction." }
+          "ONE_CLICK_RUN_VSCODE=$code" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+
       - name: Test verified local archive installation after moving it
         # PowerShell 7 reads the generated UTF-8 runner script correctly; this
         # step intentionally uses a non-ASCII path to verify portability.
