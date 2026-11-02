@@ -19,6 +19,28 @@ function Copy-OverlayFile([string]$RelativePath, [string]$SourceRoot, [string]$D
     Copy-Item -LiteralPath $source -Destination $destination -Recurse -Force
 }
 
+function Convert-ManifestToLocalPackages([string]$ManifestPath, [string]$PackagesRoot, [string]$DirectoryPrefix) {
+    if (-not (Test-Path -LiteralPath $ManifestPath -PathType Leaf)) { return }
+    $manifest = Get-Content -LiteralPath $ManifestPath -Raw | ConvertFrom-Json
+    foreach ($entry in @($manifest.packages)) {
+        $packageDirectory = Join-Path $PackagesRoot $entry.name
+        if (-not (Test-Path -LiteralPath $packageDirectory -PathType Container)) {
+            throw "Manifest $ManifestPath refers to a package that was not materialized: $($entry.name)"
+        }
+        $entry.type = "path"
+        foreach ($property in @("url", "rev", "inputRev", "subDir")) {
+            $entry.PSObject.Properties.Remove($property)
+        }
+        $entry | Add-Member -NotePropertyName dir -NotePropertyValue "$DirectoryPrefix/$($entry.name)" -Force
+        $entry | Add-Member -NotePropertyName copy -NotePropertyValue $false -Force
+    }
+    [IO.File]::WriteAllText(
+        $ManifestPath,
+        (($manifest | ConvertTo-Json -Depth 20) + "`n"),
+        [Text.UTF8Encoding]::new($false)
+    )
+}
+
 $repoRoot = (Resolve-Path (Join-Path $PSScriptRoot "..")).Path
 $versions = Import-PowerShellDataFile (Join-Path $PSScriptRoot "versions.psd1")
 $powerShellExe = (Get-Command powershell.exe -ErrorAction Stop).Source
@@ -100,14 +122,29 @@ try {
 }
 
 $rootManifestPath = Join-Path $mathlibProject "lake-manifest.json"
-$rootManifest = Get-Content -LiteralPath $rootManifestPath -Raw | ConvertFrom-Json
-$mathlibEntry = @($rootManifest.packages | Where-Object { $_.name -eq "mathlib" })
+$resolvedManifest = Get-Content -LiteralPath $rootManifestPath -Raw | ConvertFrom-Json
+$mathlibEntry = @($resolvedManifest.packages | Where-Object { $_.name -eq "mathlib" })
 if ($mathlibEntry.Count -ne 1 -or $mathlibEntry[0].rev -ne $versions.Mathlib.Commit) {
     throw "The generated Lake manifest does not pin the expected Mathlib commit."
 }
 
-Write-Step "Removing repository metadata and testing without network access"
 $packagesDirectory = Join-Path $mathlibProject ".lake\packages"
+Write-Step "Converting the resolved graph to relocatable local path dependencies"
+Convert-ManifestToLocalPackages $rootManifestPath $packagesDirectory ".lake/packages"
+Get-ChildItem -LiteralPath $packagesDirectory -Directory | ForEach-Object {
+    Convert-ManifestToLocalPackages (Join-Path $_.FullName "lake-manifest.json") $packagesDirectory ".."
+}
+$offlineLakefile = @"
+name = "portable_mathlib"
+version = "0.1.0"
+
+[[require]]
+name = "mathlib"
+path = ".lake/packages/mathlib"
+"@
+[IO.File]::WriteAllText((Join-Path $mathlibProject "lakefile.toml"), $offlineLakefile, [Text.UTF8Encoding]::new($false))
+
+Write-Step "Removing repository metadata and testing without network access"
 Get-ChildItem -LiteralPath $packagesDirectory -Directory | ForEach-Object {
     $gitMetadata = Join-Path $_.FullName ".git"
     if (Test-Path -LiteralPath $gitMetadata) { Remove-Item -LiteralPath $gitMetadata -Recurse -Force }
@@ -141,7 +178,7 @@ $components = @(
         revision = $versions.Mathlib.Commit
         license = $versions.Mathlib.License
     }
-) + @($rootManifest.packages | Where-Object { $_.name -ne "mathlib" } | ForEach-Object {
+) + @($resolvedManifest.packages | Where-Object { $_.name -ne "mathlib" } | ForEach-Object {
     [ordered]@{
         name = $_.name
         version = $_.rev
