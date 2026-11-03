@@ -59,6 +59,10 @@ if (@($extensionManifest.extensions).Count -lt 2) { throw "The extension manifes
 foreach ($extension in $extensionManifest.extensions) {
     if ($extension.sha256 -notmatch '^[0-9a-f]{64}$') { throw "Invalid SHA-256 for $($extension.id)." }
 }
+$vscodeLauncher = Get-Content -LiteralPath (Join-Path $repoRoot "Open-PortableLean4-VSCode.ps1") -Raw
+if ($vscodeLauncher -notmatch [regex]::Escape("--do-not-include-pack-dependencies")) {
+    throw "The VS Code launcher must prevent bundled VSIX files from fetching Marketplace dependencies."
+}
 
 Write-Host "Repository validation passed." -ForegroundColor Green
 

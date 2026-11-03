@@ -62,7 +62,8 @@ function Install-BundledExtensions([string]$VSCode, $Manifest, [string]$UserData
         $expected = "$($extension.id)@$($extension.version)"
         if ($installed -notcontains $expected) {
             $vsix = Join-Path $root "vscode-extensions\$($extension.file)"
-            & $VSCode --user-data-dir $UserData --extensions-dir $ExtensionsDirectory --install-extension $vsix --force | Out-Host
+            # Keep installation offline even when a VSIX declares Marketplace dependencies.
+            & $VSCode --user-data-dir $UserData --extensions-dir $ExtensionsDirectory --install-extension $vsix --force --do-not-include-pack-dependencies | Out-Host
             if ($LASTEXITCODE -ne 0) { throw "Offline installation failed for $expected." }
         }
     }
