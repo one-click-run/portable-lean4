@@ -2,7 +2,7 @@
 
 在当前目录生成固定版本、可移动、可离线运行的 Windows Lean 4 开发环境。提供精简 Core 版和包含官方构建缓存的 Mathlib 完整版。
 
-Core 包包含 Lean 4、Lake、标准库、官方自带的 C/LLVM 工具链、隔离的 elan，以及固定版本的 Lean 4 和 Tombi VS Code 扩展。它不会永久修改系统 `PATH`，也不会使用用户原有的 `%USERPROFILE%\.elan`。整个目录可以复制、改名或删除。
+Core 包包含 Lean 4、Lake、标准库、官方自带的 C/LLVM 工具链、隔离的 elan，以及固定版本的 Lean 4、Even Better TOML 和 Tombi VS Code 扩展。它不会永久修改系统 `PATH`，也不会使用用户原有的 `%USERPROFILE%\.elan`。整个目录可以复制、改名或删除。
 
 目前仅支持 Windows x86-64，固定使用 Lean **4.35.0**。完整版固定使用 Mathlib **v4.35.0**。
 
@@ -30,7 +30,7 @@ irm "https://raw.githubusercontent.com/one-click-run/portable-lean4/main/init.ps
 - `OCR-portable-lean4-<版本>.cmd`：进入便携命令行环境。
 - `OCR-portable-lean4-<版本>-VSCode.cmd`：使用隔离配置打开对应示例。
 
-VS Code 入口需要机器上已有 Microsoft Visual Studio Code。Lean 4 与 Tombi 扩展均从包内 VSIX 离线安装，不访问 Marketplace，不读写用户的全局扩展目录。
+VS Code 入口需要机器上已有 Microsoft Visual Studio Code。Lean 4、其固定依赖 Even Better TOML 与 Tombi 扩展均从包内 VSIX 离线安装，不访问 Marketplace，不读写用户的全局扩展目录。
 
 ## 完全离线安装
 
@@ -78,7 +78,7 @@ VS Code 进程还会获得包内专用的 `USERPROFILE`。这样 Lean 扩展即�
 
 - Mathlib v4.35.0 源码与官方预编译缓存
 - Mathlib 固定依赖图及所有依赖源码
-- 可离线编译、运行并由 Lean Language Server 加载的 Mathlib 示例
+- 可离线编译、运行并由 Lean Language Server 加载的 Mathlib 示例；默认使用窄模块导入以缩短首次加载，用户仍可按需使用 `import Mathlib`
 
 ## 不在离线承诺范围内
 

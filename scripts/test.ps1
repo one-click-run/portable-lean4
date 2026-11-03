@@ -53,9 +53,17 @@ $mathlibLakefile = Get-Content -LiteralPath (Join-Path $repoRoot "examples\mathl
 if ($mathlibLakefile -notmatch [regex]::Escape("rev = `"$($versions.Mathlib.Tag)`"")) {
     throw "The Mathlib example does not require the configured release tag."
 }
+$mathlibExample = Get-Content -LiteralPath (Join-Path $repoRoot "examples\mathlib\Main.lean") -Raw
+if ($mathlibExample -match '(?m)^\s*import\s+Mathlib\s*$') {
+    throw "The bundled smoke-test example must not import the entire Mathlib umbrella module."
+}
 
 $extensionManifest = Get-Content -LiteralPath (Join-Path $repoRoot "vscode-extensions\manifest.json") -Raw | ConvertFrom-Json
-if (@($extensionManifest.extensions).Count -lt 2) { throw "The extension manifest must include Lean 4 and Tombi." }
+if (@($extensionManifest.extensions).Count -lt 3) { throw "The extension manifest must include Lean 4, Even Better TOML, and Tombi." }
+$extensionIds = @($extensionManifest.extensions | ForEach-Object { $_.id })
+foreach ($requiredExtension in @("tamasfe.even-better-toml", "leanprover.lean4", "tombi-toml.tombi")) {
+    if ($extensionIds -notcontains $requiredExtension) { throw "Missing required VS Code extension: $requiredExtension" }
+}
 foreach ($extension in $extensionManifest.extensions) {
     if ($extension.sha256 -notmatch '^[0-9a-f]{64}$') { throw "Invalid SHA-256 for $($extension.id)." }
 }

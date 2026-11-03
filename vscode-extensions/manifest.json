@@ -2,6 +2,15 @@
   "minimumVSCodeVersion": "1.75.0",
   "extensions": [
     {
+      "id": "tamasfe.even-better-toml",
+      "version": "0.19.0",
+      "file": "even-better-toml-0.19.0.vsix",
+      "upstream": "https://github.com/tamasfe/taplo",
+      "downloadUrl": "https://openvsx.eclipsecontent.org/tamasfe/even-better-toml/0.19.0/tamasfe.even-better-toml-0.19.0.vsix",
+      "sha256": "74f78af7b2bffbcb9a95ca0ddecf0c46cdad0b27a9c59355a346449d6b989c61",
+      "license": "MIT"
+    },
+    {
       "id": "leanprover.lean4",
       "version": "0.0.240",
       "file": "lean4-0.0.240.vsix",

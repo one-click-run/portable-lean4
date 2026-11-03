@@ -1,6 +1,5 @@
-import Mathlib
+import Mathlib.Data.Nat.Prime.Defs
 
-example : (Finset.range 10).sum (fun i => i) = 45 := by
-  norm_num
+example : Nat.Prime 2 := Nat.prime_two
 
-#check ContinuousLinearMap
+#check Nat.Prime

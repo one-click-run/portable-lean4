@@ -6,6 +6,7 @@
 |---|---:|---|
 | Lean Windows ZIP | 4.35.0 | `5fc033e93e1a7bc59c5ebf311103d2c9cd18d4b3eddda4ffa3414e8adb0ef79e` |
 | elan Windows ZIP | 4.2.4 | `fad2e980a191c15884cc1d80d170ffc5fa84f3774541020145b66d1a644c6111` |
+| Even Better TOML VSIX | 0.19.0 | `74f78af7b2bffbcb9a95ca0ddecf0c46cdad0b27a9c59355a346449d6b989c61` |
 | Lean 4 VSIX | 0.0.240 | `8b1910a174c7b07441eb07f9be6909d29f22d4dacdc8ce94e7de4d6350af6c11` |
 | Tombi Windows x64 VSIX | 1.9.8 | `2c9988f6bdddcfe1a8d4753b7aec16f7751d22c552351333fd5bcba9bdbceef2` |
 
