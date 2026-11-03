@@ -281,12 +281,16 @@ try {
     $spinner = @("|", "/", "-", "\")
     $spinnerIndex = 0
     $checkTimer = [Diagnostics.Stopwatch]::StartNew()
-    while (-not $checkProcess.HasExited) {
-        $elapsed = $checkTimer.Elapsed.ToString("hh\:mm\:ss")
-        Write-Host ("`r[{0}] Checking Mathlib... {1}" -f $spinner[$spinnerIndex], $elapsed) -NoNewline -ForegroundColor Yellow
-        $spinnerIndex = ($spinnerIndex + 1) % $spinner.Count
-        Start-Sleep -Milliseconds 150
-        $checkProcess.Refresh()
+    if ([Console]::IsOutputRedirected) {
+        $checkProcess.WaitForExit()
+    } else {
+        while (-not $checkProcess.HasExited) {
+            $elapsed = $checkTimer.Elapsed.ToString("hh\:mm\:ss")
+            Write-Host ("`r[{0}] Checking Mathlib... {1}" -f $spinner[$spinnerIndex], $elapsed) -NoNewline -ForegroundColor Yellow
+            $spinnerIndex = ($spinnerIndex + 1) % $spinner.Count
+            Start-Sleep -Milliseconds 150
+            $checkProcess.Refresh()
+        }
     }
     $checkProcess.WaitForExit()
     $checkTimer.Stop()

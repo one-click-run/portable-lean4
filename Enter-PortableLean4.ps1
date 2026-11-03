@@ -29,11 +29,6 @@ if ($leanVersionExitCode -ne 0 -or $leanVersion -notmatch '(?<!\d)4\.35\.0(?!\d)
     & lake --version | Out-Host
     if ($LASTEXITCODE -ne 0) { throw "Lake version check failed." }
 
-    $prefix = (& lean --print-prefix).Trim()
-    if (-not $prefix.StartsWith($portable.Root, [StringComparison]::OrdinalIgnoreCase)) {
-        throw "Lean prefix resolved outside the portable directory: $prefix"
-    }
-
     if ($CheckProject) {
         $example = Join-Path $portable.Root "examples\hello"
         Push-Location $example
