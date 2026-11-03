@@ -108,8 +108,8 @@ try {
         & lake exe cache get
         if ($LASTEXITCODE -ne 0) { throw "Mathlib cache download failed." }
 
-        & lake env lean Main.lean
-        if ($LASTEXITCODE -ne 0) { throw "Mathlib example typecheck failed." }
+        & lake build
+        if ($LASTEXITCODE -ne 0) { throw "Mathlib example build failed." }
     } finally {
         Pop-Location
     }
@@ -137,10 +137,14 @@ Get-ChildItem -LiteralPath $packagesDirectory -Directory | ForEach-Object {
 $offlineLakefile = @"
 name = "portable_mathlib"
 version = "0.1.0"
+defaultTargets = ["Main"]
 
 [[require]]
 name = "mathlib"
 path = ".lake/packages/mathlib"
+
+[[lean_lib]]
+name = "Main"
 "@
 [IO.File]::WriteAllText((Join-Path $mathlibProject "lakefile.toml"), $offlineLakefile, [Text.UTF8Encoding]::new($false))
 

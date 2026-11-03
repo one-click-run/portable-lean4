@@ -32,6 +32,15 @@ irm "https://raw.githubusercontent.com/one-click-run/portable-lean4/main/init.ps
 
 VS Code 入口需要机器上已有 Microsoft Visual Studio Code。Lean 4、其固定依赖 Even Better TOML 与 Tombi 扩展均从包内 VSIX 离线安装，不访问 Marketplace，不读写用户的全局扩展目录。
 
+完整版命令行进入后，可构建随包示例：
+
+```cmd
+cd examples\mathlib
+lake build
+```
+
+第一次构建需要加载 Mathlib，在 Windows 上通常需要数十秒。Lake 会保存 `Main.olean` 增量构建产物；源文件未改变时，后续 `lake build` 会复用缓存，通常只需几秒。直接运行 `lake env lean Main.lean` 会在每次调用时重新检查根文件，不适合作为重复构建入口。
+
 ## 完全离线安装
 
 完全离线安装时，复制 Core ZIP、Mathlib 的全部 `.partNNN` 分片，以及所有相邻的 `.sha256` 文件。将 `-MathlibArchive` 指向第一个分片，安装器会逐片校验并自动拼接：
@@ -78,7 +87,7 @@ VS Code 进程还会获得包内专用的 `USERPROFILE`。这样 Lean 扩展即�
 
 - Mathlib v4.35.0 源码与官方预编译缓存
 - Mathlib 固定依赖图及所有依赖源码
-- 可离线编译、运行并由 Lean Language Server 加载的 Mathlib 示例；默认使用窄模块导入以缩短首次加载，用户仍可按需使用 `import Mathlib`
+- 可离线增量构建并由 Lean Language Server 加载的 Mathlib 示例；默认使用窄模块导入和 `lake build` 缓存以缩短重复检查，用户仍可按需使用 `import Mathlib`
 
 ## 不在离线承诺范围内
 

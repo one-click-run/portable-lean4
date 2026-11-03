@@ -55,8 +55,8 @@ if ($leanVersionExitCode -ne 0 -or $leanVersion -notmatch '(?<!\d)4\.35\.0(?!\d)
         }
         Push-Location $example
         try {
-            & lake env lean Main.lean
-            if ($LASTEXITCODE -ne 0) { throw "The bundled Mathlib example failed to typecheck." }
+            & lake build
+            if ($LASTEXITCODE -ne 0) { throw "The bundled Mathlib example failed to build." }
         } finally {
             Pop-Location
         }

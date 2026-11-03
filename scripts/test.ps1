@@ -53,9 +53,22 @@ $mathlibLakefile = Get-Content -LiteralPath (Join-Path $repoRoot "examples\mathl
 if ($mathlibLakefile -notmatch [regex]::Escape("rev = `"$($versions.Mathlib.Tag)`"")) {
     throw "The Mathlib example does not require the configured release tag."
 }
+if ($mathlibLakefile -notmatch [regex]::Escape('defaultTargets = ["Main"]')) {
+    throw "The Mathlib example must make Main the default incremental build target."
+}
+if ($mathlibLakefile -notmatch '(?ms)\[\[lean_lib\]\]\s*name\s*=\s*"Main"') {
+    throw "The Mathlib example must register Main as a Lean library target."
+}
 $mathlibExample = Get-Content -LiteralPath (Join-Path $repoRoot "examples\mathlib\Main.lean") -Raw
+if ($mathlibExample -notmatch '(?m)^module\s*$') {
+    throw "The Mathlib example must use the Lean module system."
+}
 if ($mathlibExample -match '(?m)^\s*import\s+Mathlib\s*$') {
     throw "The bundled smoke-test example must not import the entire Mathlib umbrella module."
+}
+$entryScript = Get-Content -LiteralPath (Join-Path $repoRoot "Enter-PortableLean4.ps1") -Raw
+if ($entryScript -match [regex]::Escape('lake env lean Main.lean')) {
+    throw "The Mathlib self-check must use Lake's incremental build cache."
 }
 
 $extensionManifest = Get-Content -LiteralPath (Join-Path $repoRoot "vscode-extensions\manifest.json") -Raw | ConvertFrom-Json

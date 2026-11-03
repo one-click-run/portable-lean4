@@ -68,7 +68,7 @@ jobs:
               (Join-Path $portable.ElanBin "lake.exe") `
               (Join-Path $root "examples\mathlib") `
               (Join-Path $root "examples\mathlib\Main.lean") `
-              2 15 Prime lake
+              4 15 Prime lake
             if ($LASTEXITCODE -ne 0) { throw "Mathlib language server hover test failed." }
           } finally {
             Pop-Location
